@@ -5,6 +5,7 @@ const watsonMLScoringEndpoint = new WatsonMLScoringEndpoint([
   "Heartbeats",
   "Seconds",
 ]);
+const axios = require("axios");
 
 router.post("/predictPulseRate", function (req, res, next) {
   watsonMLScoringEndpoint
@@ -27,6 +28,22 @@ router.post("/autoPredictPulseRate", function (req, res, next) {
       res.json({
         ok: true,
         bpm: response.prediction,
+      });
+    })
+    .catch((err) => {
+      res.json({ ok: false });
+    });
+});
+
+router.post("/predictActivity", function (req, res, next) {
+  console.log(req.body);
+  axios
+    .post("http://localhost:5000/predict", req.body)
+    .then((response) => {
+      console.log(response.data);
+      res.json({
+        ok: true,
+        prediction: response.data.prediction,
       });
     })
     .catch((err) => {

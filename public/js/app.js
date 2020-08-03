@@ -5,6 +5,15 @@ var msgInterval;
 var pubTopic = "iot-2/evt/status/fmt/json";
 var subTopic = "iot-2/cmd/buzz/fmt/json";
 var sensordata = {};
+var activityData = {
+  x: 0,
+  y: 0,
+  z: 0,
+  x1: 0,
+  y1: 0,
+  z1: 0,
+};
+var acl, gyroscope;
 sensordata.d = {};
 
 // Pulse metrics
@@ -113,21 +122,19 @@ function calculateHeartRate(event) {
     if (averageBpm != 0) {
       document.getElementById("pulse").innerHTML =
         "<h3 style='font-size:18pt' align='center'>" +
-          (averageBpm == 50
-            ? "<50"
-            : averageBpm == 140
-            ? ">140"
-            : Math.round(averageBpm)) +
-          " beats/minute</h3>current bpm: " +
-          (bpm == 50 ? "<50" : bpm == 140 ? ">140" : bpm) +
-          "<br> heartbeats: " +
-          heartbeats +
-          " in " +
-          mduration / 1000 +
-          " seconds <br> sensor data: " +
-          Math.round(fps) +
-          "Hz <br> ML Predicted Pulse: " +
-          sensordata.d.newbpm || 0;
+        (averageBpm == 50
+          ? "<50"
+          : averageBpm == 140
+          ? ">140"
+          : Math.round(averageBpm)) +
+        " beats/minute</h3>current bpm: " +
+        (bpm == 50 ? "<50" : bpm == 140 ? ">140" : bpm) +
+        "<br> heartbeats: " +
+        heartbeats +
+        " in " +
+        mduration / 1000 +
+        " seconds <br> sensor data: " +
+        Math.round(fps);
       sensordata.d.bpm = bpm;
       sensordata.d.heartbeats = heartbeats;
       sensordata.d.seconds = mduration / 1000;
@@ -307,6 +314,20 @@ function autoPredictPulseRate() {
   xhr.send(JSON.stringify(data));
 }
 
+function predictActivity() {
+  var xhr = new XMLHttpRequest();
+  xhr.open("POST", "/api/predictActivity", true);
+  xhr.setRequestHeader("Content-Type", "application/json");
+  xhr.onreadystatechange = function () {
+    if (xhr.readyState == XMLHttpRequest.DONE && xhr.status == 200) {
+      let response = JSON.parse(xhr.responseText);
+      console.log(response);
+      document.getElementById("activity").innerText = response.prediction;
+    }
+  };
+  xhr.send(JSON.stringify(activityData));
+}
+
 function bodyLoaded() {
   document.getElementById("submit").onclick = function () {
     predictPulseRate();
@@ -337,6 +358,8 @@ function clearData() {
 
 /** IoT initiations **/
 function init() {
+  acl = new Accelerometer();
+  gyroscope = new Gyroscope();
   var name = "mypulse",
     org = "quickstart";
   if (localStorage && "iotf" in localStorage) {
@@ -382,6 +405,26 @@ function init() {
   } else {
     document.getElementById("acEvent").innerHTML = "Not supported.";
   }
+  var fl1 = true;
+  var fl2 = true;
+  acl.addEventListener("reading", () => {
+    if (fl1) alert("Accelometer is working");
+    fl1 = false;
+    activityData.x = acl.x;
+    activityData.y = acl.y;
+    activityData.z = acl.z;
+  });
+  gyroscope.addEventListener("reading", () => {
+    if (fl2) alert("gyroscope is working");
+    fl2 = false;
+    activityData.x1 = gyroscope.x;
+    activityData.y1 = gyroscope.y;
+    activityData.z1 = gyroscope.z;
+  });
+
+  acl.start();
+  gyroscope.start();
+
   if (qsMode) {
     client = new Paho.MQTT.Client(
       "wss://quickstart.messaging.internetofthings.ibmcloud.com:8883/",
@@ -408,6 +451,9 @@ function onConnect() {
   connStatus.innerHTML = '<span style="color:green"><b>Connected</b></span>';
   devId.innerHTML = iotfData.deviceId;
   console.log("Connected");
+  window.setInterval(function () {
+    predictActivity();
+  }, 1000);
   msgInterval = window.setInterval(sensordata.publish, 250);
   window.setInterval(function () {
     getSensorData();
