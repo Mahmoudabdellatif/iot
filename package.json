@@ -9,7 +9,7 @@
   },
   "dependencies": {
     "mqtt": "*",
-    "express": "~4.15.5",
+    "express": "~4.17.3",
     "path": "*",
     "cfenv": "^1.0.4",
     "http": "*",
